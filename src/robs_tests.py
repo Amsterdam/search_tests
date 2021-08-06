@@ -23,7 +23,7 @@ logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger('searchtests')
 log.setLevel(logging.DEBUG)
 logging.getLogger('requests').setLevel(logging.ERROR)
-
+logging.getLogger("urllib3").setLevel(logging.WARNING)
 
 CATEGORY_LABEL_MAP = {
     'vestiging': 'Vestigingen',
@@ -52,48 +52,17 @@ def randomword(length):
     return ''.join(random.choice(letters) for _ in range(length))
 
 
-def get_access_token(username, password, acceptance: bool, scopes):
-    state = randomword(10)
-    acc_prefix = 'acc.' if acceptance else ''
-    authz_url = f'https://{acc_prefix}api.data.amsterdam.nl/oauth2/authorize'
+def get_access_token(client_id, client_secret, token_endpoint, scopes):
     params = {
-        'idp_id': 'datapunt',
-        'response_type': 'token',
-        'client_id': 'citydata',
+        'grant_type': 'client_credentials',
+        'client_id': client_id,
+        'client_secret': client_secret,
         'scope': ' '.join(scopes),
-        'state': state,
-        'redirect_uri': f'https://{acc_prefix}data.amsterdam.nl/'
     }
-
-    response = requests.get(authz_url, params, allow_redirects=False)
-    if response.status_code == 303:
-        location = response.headers["Location"]
-    else:
-        return {}
-
-    data = {
-        'type': 'employee_plus',
-        'email': username,
-        'password': password,
-    }
-
-    response = requests.post(location, data=data, allow_redirects=False)
-    if response.status_code == 303:
-        location = response.headers["Location"]
-    else:
-        return {}
-
-    response = requests.get(location, allow_redirects=False)
-    if response.status_code == 303:
-        returned_url = response.headers["Location"]
-    else:
-        return {}
-
-    # Get grantToken from parameter aselect_credentials in session URL
-    parsed = urlparse(returned_url)
-    fragment = parse_qsl(parsed.fragment)
-    access_token = fragment[0][1]
-    return access_token
+    response = requests.post(token_endpoint, params)
+    assert response.status_code == 200
+    data = response.json()
+    return data['access_token']
 
 
 class AuthorizationSetup(object):
@@ -106,51 +75,42 @@ class AuthorizationSetup(object):
     token_employee_plus
     """
     def __init__(self):
-
         self.token_employee = None
         self.token_employee_plus = None
-
         self.set_up_authorization()
 
     def set_up_authorization(self):
         """
         SET
-
         token_employee
         token_employee_plus
 
         to use with:
-
         self.client.credentials(
             HTTP_AUTHORIZATION='Bearer {}'.format(self.token_employee_plus))
 
         """
-        password = os.getenv('PASSWORD', 'unknown')
-        assert password != 'unknown'
+        client_id = os.getenv('OIDC_CLIENT_ID', 'unknown')
+        assert client_id != 'unknown'
 
-        username = os.getenv('USERNAME', 'searchtest')
-        environment = os.getenv('ENVIRONMENT', 'acceptance')
+        client_secret = os.getenv('OIDC_CLIENT_SECRET', 'unknown')
+        assert client_secret != 'unknown'
 
-        scopes_employee = [
-            'BRK/RO', 'MON/RBC', 'BRK/RS', 'TLLS/R',
-            'MON/RDM', 'HR/R', 'WKPB/RBDU']
+        token_endpoint = os.getenv('OIDC_TOKEN_ENDPOINT', 'unknown')
+        assert token_endpoint != 'unknown'
 
-        scopes_employee_plus = [
-            'BRK/RO', 'MON/RBC', 'BRK/RS', 'TLLS/R',
-            'MON/RDM', 'BRK/RSN', 'HR/R', 'WKPB/RBDU']
+        # 'brk_ro', 'brk_rs', 'tlls_r', 'mon_rbc', 'mon_rdm', 'hr_r', 'wkpb_rbdu'
+        scopes_employee = ['employee']
 
-        self.token_employee = get_access_token(
-            username, password,
-            environment == 'acceptance', scopes_employee)
+        # 'brk_ro', 'brk_rs', 'tlls_r', 'mon_rbc', 'mon_rdm', 'hr_r', 'wkpb_rbdu', 'brk_rsn'
+        scopes_employee_plus = ['employee_plus']
 
-        self.token_employee_plus = get_access_token(
-            username, password,
-            environment == 'acceptance',
-            scopes_employee_plus)
+        self.token_employee = get_access_token(client_id, client_secret, token_endpoint, scopes_employee)
+        self.token_employee_plus = get_access_token(client_id, client_secret, token_endpoint, scopes_employee_plus)
 
         # print(f'token_employee: {self.token_employee}')
         # print(f'token_employee_plus: {self.token_employee_plus}')
-        print(f'Created authorized requests user {username} in {environment}!')
+        print(f'Created authorized requests client {client_id}!')
 
 
 auth = AuthorizationSetup()
