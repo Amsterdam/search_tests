@@ -4,4 +4,4 @@ jsonschema==2.5.1
 pycurl==7.43.0
 pyresttest==1.7.1
 requests==2.20.0
-PyYAML==4.2b4
+PyYAML==5.4
