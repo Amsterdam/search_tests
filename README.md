@@ -21,9 +21,10 @@ Het project bevat twee soorten tests:
     resttest.py https://acc.api.data.amsterdam.nl smoke_test.yml
     
 ## Specific test for atlas client created by rob m and rob k.
-    To test against acceptance we need JWKS keysest for acceptance.
-    Find authz_keyset_acc in ansible vault and set in the PUB_JWKS env var
-    (without {% raw %} like :
+
+To test against acceptance we need JWKS keysest for acceptance.
+Find authz_keyset_acc in ansible vault and set in the PUB_JWKS env var
+(without {% raw %} like :
 
     export PUB_JWKS='
     {
@@ -44,12 +45,18 @@ Het project bevat twee soorten tests:
             }
     '
 
-    The you can run :
+The you can run :
 
     python robs_tests.py https://acc.api.data.amsterdam.nl
 
 
 ## Docker environment
+
+Include the OAuth credentials in the `docker-compose.yml` file:
+
+* `OIDC_CLIENT_ID`
+* `OIDC_CLIENT_SECRET`
+* `OIDC_TOKEN_ENDPOINT`
 
 Either run the test directly or use the run script. Directly run test using:
 
